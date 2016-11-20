@@ -6,7 +6,7 @@ from email.mime.text import MIMEText # To send text in e-mails
 
 currentUsers = []
 supportedProviders = []
-currentTs = []
+currentTnames = []
 
 emailUsername = 'riprainen@gmail.com'
 emailPassword = 'rip connor'
@@ -30,17 +30,18 @@ class Provider():
         self.gateway = gatewaySuffix
 
 
-def sendMessage(user);
+def sendMessage(user):
     if user != None and user.status == 'T':
-        msg = MIMEText(tMessage + ', '.join(currentTs))
+        msg = MIMEText(tMessage + ', '.join(currentTnames))
     else:
         msg = MIMEText(innocentMessage)
     msg['To'] = user.number + user.provider.gateway
     s.sendmail(emailUsername, msg['To'], msg.as_string())
-    print 'Message sent'
+    print 'Message sent to ' + user.name
     
 
 def generateGame(curUsers):
+    
     t1 = random.randrange(0, len(curUsers))
     t2 = random.randrange(0, len(curUsers))
     t3 = random.randrange(0, len(curUsers))
@@ -48,6 +49,15 @@ def generateGame(curUsers):
     curUsers[t1].status = 'T'
     curUsers[t2].status = 'T'
     curUsers[t3].status = 'T'
+
+    global currentTnames
+    currentTnames.append(curUsers[t1].name)
+    currentTnames.append(curUsers[t2].name)
+    currentTnames.append(curUsers[t3].name)
+
+    currentTnames = list(set(currentTnames))    
+    
+    return curUsers
     
 
 class User():
@@ -56,14 +66,32 @@ class User():
     status = ''
     provider = Provider('', '')
 
+
+def initializeUsers():
+    playerAlex = User()
+    playerAlex.name = 'Alex Chi'
+    playerAlex.number = '8184394582'
+    playerAlex.provider = supportedProviders[-1]
+    currentUsers.append(playerAlex)
+
 def initializeProviders():
     supportedProviders.append(Provider('AT&T', '@txt.att.net'))
     supportedProviders.append(Provider('Boost Mobile', '@myboostmobile.com'))
+    supportedProviders.append(Provider('Metro PCS', '@mymetropcs.com'))
     supportedProviders.append(Provider('Sprint', '@messaging.sprintpcs.com'))
     supportedProviders.append(Provider('T-Mobile', '@tmomail.net'))
     supportedProviders.append(Provider('US Cellular', '@email.uscc.net'))
     supportedProviders.append(Provider('Verizon', '@vtext.com'))
         
+class StartGame(webapp2.RequestHandler):
+    def get(self):
+        self.response.out.write('Messages are now sent to each player.')
+        for player in generateGame(currentUsers):
+            sendMessage(player)
+        global currentTnames
+        currentTnames = []
+        
+    
 class AddUserPage(webapp2.RequestHandler):
     def get(self):
         self.response.out.write("""
@@ -103,19 +131,43 @@ class Guestbook(webapp2.RequestHandler):
         self.response.out.write(player.name)
         currentUsers.append(player)
 
+        self.response.out.write("""
+              <html>
+                  <body>
+               <form action="/">
+                <input type="submit" value="Player List" />
+                </form>""")  
+
 class HelloWebapp2(webapp2.RequestHandler):
     def get(self):
         # for i in range(1,100):
             # self.response.write('Hi!<br />')
-        sendMessage(None)
+
+        self.response.write('Welcome to the TTT Server. Time for Darkness, Deceipt or Death. If you do not comply, KYS.' + '<br />' + '<br />')
+        
         for user in currentUsers:
             self.response.write(user.name + ' has a number of ' + user.number + '<br />')
-            self.response.write('Their provider is ' + user.provider.provider)
+            self.response.write('Their provider is ' + user.provider.provider + '<br />' + '<br />')
+
+        self.response.out.write("""
+          <html>
+              <body>
+           <form action="/chi">
+            <input type="submit" value="Add New User" />
+            </form>""")
+
+        self.response.out.write("""
+          <html>
+              <body>
+           <form action="/startgame">
+            <input type="submit" value="Start Game" />
+            </form>""")            
 
 app = webapp2.WSGIApplication([
     ('/', HelloWebapp2),
     ('/chi', AddUserPage),
     ('/sign', Guestbook),
+    ('/startgame', StartGame),
 ], debug=True)
 
 def exitProgram():
@@ -124,6 +176,7 @@ def exitProgram():
 def main():
     from paste import httpserver
     initializeProviders()
+    initializeUsers() # comment out later
     httpserver.serve(app, host='0.0.0.0', port='1885')
 
 if __name__ == '__main__':
