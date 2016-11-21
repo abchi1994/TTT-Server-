@@ -31,17 +31,20 @@ class Provider():
 
 
 def sendMessage(user):
-    if user != None and user.status == 'T':
-        msg = MIMEText(tMessage + ', '.join(currentTnames))
-    else:
-        msg = MIMEText(innocentMessage)
+    if user != None:
+        if user.status == 'T':
+            msg = MIMEText(tMessage + ', '.join(currentTnames))
+        else:
+            msg = MIMEText(innocentMessage)
+            
     msg['To'] = user.number + user.provider.gateway
     s.sendmail(emailUsername, msg['To'], msg.as_string())
     print 'Message sent to ' + user.name
     
 
 def generateGame(curUsers):
-    
+    #consider making copy of curUsers for currentTnames
+    #as is code still may text an innocent who are T
     t1 = random.randrange(0, len(curUsers))
     t2 = random.randrange(0, len(curUsers))
     t3 = random.randrange(0, len(curUsers))
@@ -55,7 +58,7 @@ def generateGame(curUsers):
     currentTnames.append(curUsers[t2].name)
     currentTnames.append(curUsers[t3].name)
 
-    currentTnames = list(set(currentTnames))    
+    currentTnames = list(set(currentTnames))
     
     return curUsers
     
@@ -88,6 +91,7 @@ class StartGame(webapp2.RequestHandler):
         self.response.out.write('Messages are now sent to each player.')
         for player in generateGame(currentUsers):
             sendMessage(player)
+            player.status = '' #making sure T are reset?
         global currentTnames
         currentTnames = []
 
@@ -139,21 +143,26 @@ class DeleteUserPage(webapp2.RequestHandler):
                 <div><input type="submit" value="Delete user"></div>
               </form>
             </body>
-          </html>""")            
+          </html>""")
         
 class NewGuestbook(webapp2.RequestHandler):
     def post(self):
         self.response.out.write('User Deleted')
-        
-          if self.request.get('User') in currentUsers:
-            currentUsers.remove(currentUsers.pop(user))     
 
+        index = self.request.get('User')
+        
+        for user in currentUsers:
+            if int(currentUsers.index(user)) == index:
+                currentUsers.pop(index)
+            
         self.response.out.write("""
               <html>
                   <body>
                <form action="/">
                 <input type="submit" value="Player List" />
                 </form>""")
+        #global currentUsers
+        #currentUsers = []
                                 
 class Guestbook(webapp2.RequestHandler):
     def post(self):
