@@ -90,6 +90,13 @@ class StartGame(webapp2.RequestHandler):
             sendMessage(player)
         global currentTnames
         currentTnames = []
+
+        self.response.out.write("""
+              <html>
+                  <body>
+               <form action="/">
+                <input type="submit" value="Player List" />
+                </form>""") 
         
     
 class AddUserPage(webapp2.RequestHandler):
@@ -97,7 +104,7 @@ class AddUserPage(webapp2.RequestHandler):
         self.response.out.write("""
           <html>
             <body>
-              First form is player name; second form is phone number.
+              First form is player name; second form is phone number (10 Digit).
               <form action="/sign" method="post">
                 <div><textarea name="Player" rows="1" cols="30"></textarea></div>
                 <div><textarea name="Number" rows="1" cols="10"></textarea></div><select name="Provider">""")
@@ -114,6 +121,40 @@ class AddUserPage(webapp2.RequestHandler):
             </body>
           </html>""")
 
+class DeleteUserPage(webapp2.RequestHandler):
+     def get(self):
+        self.response.out.write("""
+          <html>
+            <form action="/deleted" method="post">
+               </div><select name="User">""")
+        
+        for user in currentUsers:            
+            self.response.out.write("""<option value=\""""
+                                    + str(currentUsers.index(user))
+                                    + """\">""" + user.name
+                                    + """</option>""")   
+        
+        
+        self.response.out.write("""</select>
+                <div><input type="submit" value="Delete user"></div>
+              </form>
+            </body>
+          </html>""")            
+        
+class NewGuestbook(webapp2.RequestHandler):
+    def post(self):
+        self.response.out.write('User Deleted')
+        
+          if self.request.get('User') in currentUsers:
+            currentUsers.remove(currentUsers.pop(user))     
+
+        self.response.out.write("""
+              <html>
+                  <body>
+               <form action="/">
+                <input type="submit" value="Player List" />
+                </form>""")
+                                
 class Guestbook(webapp2.RequestHandler):
     def post(self):
         self.response.out.write('<html><body>You wrote:<pre>')
@@ -136,7 +177,9 @@ class Guestbook(webapp2.RequestHandler):
                   <body>
                <form action="/">
                 <input type="submit" value="Player List" />
-                </form>""")  
+                </form>""")
+
+
 
 class HelloWebapp2(webapp2.RequestHandler):
     def get(self):
@@ -159,6 +202,13 @@ class HelloWebapp2(webapp2.RequestHandler):
         self.response.out.write("""
           <html>
               <body>
+           <form action="/eyob">
+            <input type="submit" value="Delete User" />
+            </form>""")
+
+        self.response.out.write("""
+          <html>
+              <body>
            <form action="/startgame">
             <input type="submit" value="Start Game" />
             </form>""")            
@@ -166,7 +216,9 @@ class HelloWebapp2(webapp2.RequestHandler):
 app = webapp2.WSGIApplication([
     ('/', HelloWebapp2),
     ('/chi', AddUserPage),
+    ('/eyob', DeleteUserPage),
     ('/sign', Guestbook),
+    ('/deleted', NewGuestbook),
     ('/startgame', StartGame),
 ], debug=True)
 
@@ -177,7 +229,7 @@ def main():
     from paste import httpserver
     initializeProviders()
     initializeUsers() # comment out later
-    httpserver.serve(app, host='0.0.0.0', port='1885')
+    httpserver.serve(app, host='0.0.0.0', port='3000')
 
 if __name__ == '__main__':
     try:
