@@ -3,10 +3,15 @@ import cgi
 import random # To designate Ts and Is
 import smtplib # To send e-mails
 from email.mime.text import MIMEText # To send text in e-mails
+from datetime import datetime # To timestamp the current game
 
+# Consider creating a class to represent the current game + details
+# Allows us to customize kinds of games like different messages, sleeper agents, etc.
 currentUsers = []
 supportedProviders = []
 currentTnames = []
+currentGame = []
+gameTime = datetime.now()
 
 emailUsername = 'riprainen@gmail.com'
 emailPassword = 'rip connor'
@@ -31,11 +36,13 @@ class Provider():
 
 
 def sendMessage(user):
+    now = gameTime
+    preamble = 'For the game on ' + '/'.join([str(now.month), str(now.day), str(now.year)]) + ' starting at ' + ':'.join([str(now.hour), str(now.minute), str(now.second), str(now.microsecond)]) + '\n'
     if user != None:
         if user.status == 'T':
-            msg = MIMEText(tMessage + ', '.join(currentTnames))
+            msg = MIMEText(preamble + tMessage + ', '.join(currentTnames))
         else:
-            msg = MIMEText(innocentMessage)
+            msg = MIMEText(preamble + innocentMessage)
             
     msg['To'] = user.number + user.provider.gateway
     s.sendmail(emailUsername, msg['To'], msg.as_string())
@@ -45,6 +52,13 @@ def sendMessage(user):
 def generateGame(curUsers):
     #consider making copy of curUsers for currentTnames
     #as is code still may text an innocent who are T
+
+    global gameTime
+    gameTime = datetime.now()
+    
+    for user in curUsers:
+        user.status = ''
+        
     t1 = random.randrange(0, len(curUsers))
     t2 = random.randrange(0, len(curUsers))
     t3 = random.randrange(0, len(curUsers))
@@ -88,18 +102,28 @@ def initializeProviders():
         
 class StartGame(webapp2.RequestHandler):
     def get(self):
-        self.response.out.write('Messages are now sent to each player.')
-        for player in generateGame(currentUsers):
-            sendMessage(player)
-            player.status = '' #making sure T are reset?
+        
+        
         global currentTnames
         currentTnames = []
+        
+        global currentGame
+        if len(currentUsers): 
+          currentGame = generateGame(currentUsers)
+ 
+          for player in currentGame:
+            sendMessage(player)
+          self.response.out.write('Messages are now sent to each player.')
+
+        else:
+          self.response.out.write('No Players')
+
 
         self.response.out.write("""
               <html>
                   <body>
                <form action="/">
-                <input type="submit" value="Player List" />
+                <input type="submit" value="Homepage" />
                 </form>""") 
         
     
@@ -140,26 +164,39 @@ class DeleteUserPage(webapp2.RequestHandler):
         
         
         self.response.out.write("""</select>
-                <div><input type="submit" value="Delete user"></div>
+                <div><input type="submit" name="Delete" value="Delete user"></div>
+                <div><input type="submit" value="Resend recent text"></div
               </form>
             </body>
           </html>""")
         
 class NewGuestbook(webapp2.RequestHandler):
     def post(self):
-        self.response.out.write('User Deleted')
 
         index = self.request.get('User')
+        print index
         
-        for user in currentUsers:
-            if int(currentUsers.index(user)) == index:
-                currentUsers.pop(index)
-            
+        global currentUsers
+        
+        
+        if len(currentUsers):
+          if self.request.get('Delete'):
+            currentUsers.pop(int(index))
+            self.response.out.write('User Deleted')
+          else:
+            if len(currentGame):
+              sendMessage(currentGame[int(index)])
+              self.response.out.write('Resent game to ' + currentGame[int(index)].name)
+            else:
+              self.response.out.write('No game to resend.')
+        else:
+          self.response.out.write('No user with which to do anything.')
+          
         self.response.out.write("""
               <html>
                   <body>
                <form action="/">
-                <input type="submit" value="Player List" />
+                <input type="submit" value="Homepage" />
                 </form>""")
         #global currentUsers
         #currentUsers = []
@@ -185,7 +222,7 @@ class Guestbook(webapp2.RequestHandler):
               <html>
                   <body>
                <form action="/">
-                <input type="submit" value="Player List" />
+                <input type="submit" value="Homepage" />
                 </form>""")
 
 
@@ -212,7 +249,7 @@ class HelloWebapp2(webapp2.RequestHandler):
           <html>
               <body>
            <form action="/eyob">
-            <input type="submit" value="Delete User" />
+            <input type="submit" value="Delete User / Resend Text" />
             </form>""")
 
         self.response.out.write("""
@@ -237,7 +274,7 @@ def exitProgram():
 def main():
     from paste import httpserver
     initializeProviders()
-    initializeUsers() # comment out later
+   # initializeUsers() # comment out later
     httpserver.serve(app, host='0.0.0.0', port='3000')
 
 if __name__ == '__main__':
