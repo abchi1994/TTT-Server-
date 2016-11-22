@@ -232,7 +232,7 @@ class HelloWebapp2(webapp2.RequestHandler):
         # for i in range(1,100):
             # self.response.write('Hi!<br />')
 
-        self.response.write('Welcome to the TTT Server. Time for Darkness, Deceipt or Death. If you do not comply, KYS.' + '<br />' + '<br />')
+        self.response.write('Welcome to the TTT Server. Time for Darkness, Deception and Death. If you do not comply, KYS.' + '<br />' + '<br />')
         
         for user in currentUsers:
             self.response.write(user.name + ' has a number of ' + user.number + '<br />')
