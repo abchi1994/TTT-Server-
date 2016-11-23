@@ -1,3 +1,5 @@
+# By Eyob Tefera and Alexander Chi 11/20/2016
+
 import webapp2 # To host the server as a web page
 import cgi
 import random # To designate Ts and Is
@@ -12,7 +14,7 @@ supportedProviders = []
 currentTnames = []
 currentGame = []
 gameTime = datetime.now()
-
+numberTs = 3
 emailUsername = 'riprainen@gmail.com'
 emailPassword = 'rip connor'
 
@@ -58,19 +60,27 @@ def generateGame(curUsers):
     
     for user in curUsers:
         user.status = ''
-        
-    t1 = random.randrange(0, len(curUsers))
-    t2 = random.randrange(0, len(curUsers))
-    t3 = random.randrange(0, len(curUsers))
 
-    curUsers[t1].status = 'T'
-    curUsers[t2].status = 'T'
-    curUsers[t3].status = 'T'
+    
+##    t1 = random.randrange(0, len(curUsers))
+##    t2 = random.randrange(0, len(curUsers))
+##    t3 = random.randrange(0, len(curUsers))
+##
+##    curUsers[t1].status = 'T'
+##    curUsers[t2].status = 'T'
+##    curUsers[t3].status = 'T'
 
     global currentTnames
-    currentTnames.append(curUsers[t1].name)
-    currentTnames.append(curUsers[t2].name)
-    currentTnames.append(curUsers[t3].name)
+##    currentTnames.append(curUsers[t1].name)
+##    currentTnames.append(curUsers[t2].name)
+##    currentTnames.append(curUsers[t3].name)
+
+    
+    global numberTs
+    for _ in range(numberTs):
+        t = random.randrange(0,len(curUsers))
+        curUsers[t].status = 'T'
+        currentTnames.append(curUsers[t].name)
 
     currentTnames = list(set(currentTnames))
     
@@ -102,8 +112,8 @@ def initializeProviders():
         
 class StartGame(webapp2.RequestHandler):
     def get(self):
-        
-        
+       #if self.request.get('numTs') is not None: 
+       # numberTs = int(self.request.get('numTs'))
         global currentTnames
         currentTnames = []
         
@@ -124,8 +134,15 @@ class StartGame(webapp2.RequestHandler):
                   <body>
                <form action="/">
                 <input type="submit" value="Homepage" />
-                </form>""") 
-        
+                </form>""")
+    def post(self):
+        global numberTs
+        try:
+          numberTs = int(self.request.get('numTs'))
+          self.redirect("/startgame")
+        except:
+          self.response.out.write('Please enter a valid number.')
+          
     
 class AddUserPage(webapp2.RequestHandler):
     def get(self):
@@ -232,7 +249,16 @@ class HelloWebapp2(webapp2.RequestHandler):
         # for i in range(1,100):
             # self.response.write('Hi!<br />')
 
-        self.response.write('Welcome to the TTT Server. Time for Darkness, Deceipt or Death. If you do not comply, KYS.' + '<br />' + '<br />')
+        self.response.write('Welcome to the TTT Server. Time for Darkness, Deception and Death. If you do not comply, KYS.' + '<br />' + '<br />')
+
+        self.response.write('Set Max Number of T\'s, Current set to ' + str(numberTs) + '<br />')
+        
+        self.response.write("""
+          <html>
+              <body>
+           <form action="/startgame" method="post"><div><textarea name="numTs" rows="1" cols="2"></textarea>
+            <input type="submit" value="Change and Start" /></div></form>""")
+
         
         for user in currentUsers:
             self.response.write(user.name + ' has a number of ' + user.number + '<br />')
@@ -274,7 +300,7 @@ def exitProgram():
 def main():
     from paste import httpserver
     initializeProviders()
-   # initializeUsers() # comment out later
+    initializeUsers() # comment out later
     httpserver.serve(app, host='0.0.0.0', port='3000')
 
 if __name__ == '__main__':
