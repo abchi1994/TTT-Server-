@@ -16,7 +16,7 @@ currentGame = []
 gameTime = datetime.now()
 numberTs = 3
 emailUsername = 'riprainen@gmail.com'
-emailPassword = 'rip connor'
+emailPassword = ''#private ask Alex or Eyob if required
 
 ### E-mail stuff
 innocentMessage = 'You are innocent.'
