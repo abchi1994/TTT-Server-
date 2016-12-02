@@ -2,8 +2,8 @@
 For new ttt house game
 
 If using on a new computer. Server requires:
-Python 2.7
-WebApp2 (outside of AppEngine)
+Python 2.7,
+WebApp2 (outside of AppEngine),
 TinyDB
 
 https://webapp2.readthedocs.io/en/latest/tutorials/quickstart.nogae.html
