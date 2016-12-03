@@ -17,7 +17,7 @@ currentGame = []
 gameTime = datetime.now()
 numberTs = 3
 emailUsername = 'riprainen@gmail.com'
-emailPassword = '' #private, ask Alex or Eyob for pass
+emailPassword = ''
 ##userDB = Database('/tmp/users') # change this somewhere more permanent
 ##gamesDB = Database('/tmp/games') # change this somewhere more permanent
 userDB = TinyDB('Users.json')
@@ -95,10 +95,25 @@ def generateGame(curUsers):
     global currentTnames  
     global numberTs
     
-    for _ in range(numberTs):
-        t = random.randrange(0,len(curUsers))
-        curUsers[t].status = 'T'
-        currentTnames.append(curUsers[t].name)
+# Commented Out code is for variable number of T's
+
+##    for _ in range(numberTs):
+##        t = random.randrange(0,len(curUsers))
+##        if curUsers[t].status is 'T':
+##        curUsers[t].status = 'T'
+##        currentTnames.append(curUsers[t].name)
+    #Use Code Below for Set Number of T
+    
+    counter = 0
+    while counter < numberTs:
+        t = random.randrange(0, len(curUsers))
+        if curUsers[t].status is 'T':
+            continue
+        else:
+            curUsers[t].status = 'T'
+            currentTnames.append(curUsers[t].name)
+            counter += 1
+    
 
     currentTnames = list(set(currentTnames))
     
@@ -220,20 +235,10 @@ class DeleteUserPage(webapp2.RequestHandler):
           </html>""")
 
 def commitUserToDatabase(player):
-    # Don't forget to include this in a delete method that runs for every user @ exitProgram() time
-    # Maybe consider two players on the same phone?
-##    player_dict = player.__dict__
-##    userDB.add_index(player.number)
-##    print userDB.insert(player_dict)
-##    print player_dict
-##    tester = {'name': player.name, 'number': player.number, 'provider' : player.provider.provider}
     if not userDB.get(Query().number == player.number):
       userDB.insert(player.asDict())
     else:
       userDB.update(player.asDict(), Query().number == player.number) # This updates things including those that aren't updated often (name, number). Maybe add a function to user for the stats worth updating (score, etc.)
-##    print tester
-##    print player.__dict__
-##    print player.asDict()
     print userDB.all()
         
 class NewGuestbook(webapp2.RequestHandler):
@@ -264,8 +269,6 @@ class NewGuestbook(webapp2.RequestHandler):
                <form action="/">
                 <input type="submit" value="Homepage" />
                 </form>""")
-        #global currentUsers
-        #currentUsers = []
 
 def addPlayerToSystem(player):
         commitUserToDatabase(player)
