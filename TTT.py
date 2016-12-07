@@ -16,8 +16,9 @@ currentTnames = []
 currentGame = []
 gameTime = datetime.now()
 numberTs = 3
+gameNum = 1
 emailUsername = 'riprainen@gmail.com'
-emailPassword = '' #private, ask Alex or Eyob for pass
+emailPassword = '' #any gmail account works
 ##userDB = Database('/tmp/users') # change this somewhere more permanent
 ##gamesDB = Database('/tmp/games') # change this somewhere more permanent
 userDB = TinyDB('Users.json')
@@ -42,12 +43,20 @@ class Provider(object):
         self.provider = providerName
         self.gateway = gatewaySuffix
 
+def reconnect():
+    global s
+    s = smtplib.SMTP('smtp.gmail.com:587')
+    s.starttls()
+    s.login(emailUsername, emailPassword)
+
+
 
 def sendMessage(user=None, msgStatus='start'):
 #can also do case switch statements
     if msgStatus == 'start':
         now = gameTime
-        preamble = 'For the game on ' + '/'.join([str(now.month), str(now.day), str(now.year)]) + ' starting at ' + ':'.join([str(now.hour), str(now.minute), str(now.second), str(now.microsecond)]) + '\n'
+        #preamble = 'For the game on ' + '/'.join([str(now.month), str(now.day), str(now.year)]) + ' starting at ' + ':'.join([str(now.hour), str(now.minute), str(now.second), str(now.microsecond)]) + '\n'
+        preamble = 'Game# ' + str(gameNum) + ': '
         if user != None:
             if user.status == 'T':
                 msg = MIMEText(preamble + tMessage + ', '.join(currentTnames))
@@ -64,8 +73,22 @@ def sendMessage(user=None, msgStatus='start'):
         msg['To'] = user.number + user.provider.gateway
         s.sendmail(emailUsername, msg['To'], msg.as_string())
         print 'Message sent to ' + user.name
+        
     except:
-        print 'Message failed'
+        print 'Message failed, re-connecting'
+##        s = smtplib.SMTP('smtp.gmail.com:587')
+##        s.starttls()
+##        s.login(emailUsername, emailPassword)
+        reconnect()
+
+        try:
+            s.sendmail(emailUsername, msg['To'], msg.as_string())
+            print 'Retry Successful, Message sent to ' + user.name
+            
+        except:
+            print 'Message Failed, Restart Server'
+        
+        
     
 
 def initializeDatabases():
@@ -95,10 +118,32 @@ def generateGame(curUsers):
     global currentTnames  
     global numberTs
     
-    for _ in range(numberTs):
-        t = random.randrange(0,len(curUsers))
-        curUsers[t].status = 'T'
-        currentTnames.append(curUsers[t].name)
+# Commented Out code is for variable number of T's
+
+##    for _ in range(numberTs):
+##        t = random.randrange(0,len(curUsers))
+##        if curUsers[t].status is 'T':
+##        curUsers[t].status = 'T'
+##        currentTnames.append(curUsers[t].name)
+    #Use Code Below for Set Number of T
+    
+    counter = 0
+    
+    if len(curUsers) < numberTs:
+        print len(curUsers)
+        print numberTs
+        numberTs = 0
+        
+    while counter < numberTs:
+        t = random.randrange(0, len(curUsers))
+        if curUsers[t].status is 'T':
+            continue
+        else:
+            curUsers[t].status = 'T'
+            currentTnames.append(curUsers[t].name)
+            counter += 1
+        
+    
 
     currentTnames = list(set(currentTnames))
     
@@ -127,11 +172,7 @@ class User(object):
 
 def initializeUsers():
     pass
-##    playerAlex = User()
-##    playerAlex.name = 'Alex Chi'
-##    playerAlex.number = '8184394582'
-##    playerAlex.provider = supportedProviders[-1]
-##    currentUsers.append(playerAlex)
+
 
 def initializeProviders():
     supportedProviders.append(Provider('AT&T', '@txt.att.net'))
@@ -141,6 +182,7 @@ def initializeProviders():
     supportedProviders.append(Provider('T-Mobile', '@tmomail.net'))
     supportedProviders.append(Provider('US Cellular', '@email.uscc.net'))
     supportedProviders.append(Provider('Verizon', '@vtext.com'))
+    supportedProviders.append(Provider('E-MAIL', ''))
         
 class StartGame(webapp2.RequestHandler):
     def get(self):
@@ -159,6 +201,9 @@ class StartGame(webapp2.RequestHandler):
 
         else:
           self.response.out.write('No Players')
+          
+        global gameNum
+        gameNum = gameNum + 1
 
 
         self.response.out.write("""
@@ -183,8 +228,8 @@ class AddUserPage(webapp2.RequestHandler):
             <body>
               First form is player name; second form is phone number (10 Digit).
               <form action="/sign" method="post">
-                <div><textarea name="Player" rows="1" cols="30"></textarea></div>
-                <div><textarea name="Number" rows="1" cols="10"></textarea></div><select name="Provider">""")
+                <div><input type = "text" name="Player" rows="1" cols="30"></div>
+                <div><input type = "text" name="Number" rows="1" cols="20"></div><select name="Provider">""")
 
         for provider in supportedProviders:
             self.response.out.write("""<option value=\""""
@@ -197,6 +242,43 @@ class AddUserPage(webapp2.RequestHandler):
               </form>
             </body>
           </html>""")
+
+        #update user name
+        self.response.out.write('Change User Nickname')
+        self.response.out.write("""
+          <html>
+            <form action="/chi" method="post">
+               </div><select name="User">""")
+        
+        for user in userDB.all():            
+            self.response.out.write("""<option value=\""""
+                                    + user['number']
+                                    + """\">""" + user['name']
+                                    + """</option>""")
+
+        self.response.out.write('<div><input type = "text" name="nick" rows="1" cols="30"></div>')
+        
+        
+        self.response.out.write("""</select>
+                <div><input type="submit" name="Change" value="Change Name"></div>
+              </form>
+            </body>
+          </html>""")
+
+    def post(self):
+        player = User()
+        query = Query()
+        nick = self.request.get('nick')
+        #print self.request.get('User')
+        if self.request.get('nick') != '':
+            userDB.update({'name': nick}, query.number == self.request.get('User'))
+            
+        self.redirect('/chi')
+        
+        
+
+        
+        
 
 class DeleteUserPage(webapp2.RequestHandler):
      def get(self):
@@ -220,20 +302,10 @@ class DeleteUserPage(webapp2.RequestHandler):
           </html>""")
 
 def commitUserToDatabase(player):
-    # Don't forget to include this in a delete method that runs for every user @ exitProgram() time
-    # Maybe consider two players on the same phone?
-##    player_dict = player.__dict__
-##    userDB.add_index(player.number)
-##    print userDB.insert(player_dict)
-##    print player_dict
-##    tester = {'name': player.name, 'number': player.number, 'provider' : player.provider.provider}
     if not userDB.get(Query().number == player.number):
       userDB.insert(player.asDict())
     else:
       userDB.update(player.asDict(), Query().number == player.number) # This updates things including those that aren't updated often (name, number). Maybe add a function to user for the stats worth updating (score, etc.)
-##    print tester
-##    print player.__dict__
-##    print player.asDict()
     print userDB.all()
         
 class NewGuestbook(webapp2.RequestHandler):
@@ -264,8 +336,6 @@ class NewGuestbook(webapp2.RequestHandler):
                <form action="/">
                 <input type="submit" value="Homepage" />
                 </form>""")
-        #global currentUsers
-        #currentUsers = []
 
 def addPlayerToSystem(player):
         commitUserToDatabase(player)
@@ -365,7 +435,7 @@ class HelloWebapp2(webapp2.RequestHandler):
         self.response.write("""
           <html>
               <body>
-           <form action="/startgame" method="post"><div><textarea name="numTs" rows="1" cols="2"></textarea>
+           <form action="/startgame" method="post"><div><input type = "text" name="numTs" size="1">
             <input type="submit" value="Change and Start" /></div></form>""")
 
         
@@ -377,7 +447,7 @@ class HelloWebapp2(webapp2.RequestHandler):
           <html>
               <body>
            <form action="/chi">
-            <input type="submit" value="Add New User" />
+            <input type="submit" value="Add New User/ Change Nickname" />
             </form>""")
 
         self.response.out.write("""
