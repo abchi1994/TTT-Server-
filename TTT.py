@@ -8,6 +8,9 @@ from email.mime.text import MIMEText # To send text in e-mails
 from datetime import datetime # To timestamp the current game
 from tinydb import TinyDB, Query # To handle persistent data like user info and wins
 
+currentVersion = "3"
+permGameNum = "1"
+
 # Consider creating a class to represent the current game + details
 # Allows us to customize kinds of games like different messages, sleeper agents, etc.
 currentUsers = []
@@ -17,17 +20,16 @@ currentGame = []
 gameTime = datetime.now()
 numberTs = 3
 gameNum = 1
-emailUsername = 'riprainen@gmail.com'
-emailPassword = '' #any gmail account works
-##userDB = Database('/tmp/users') # change this somewhere more permanent
-##gamesDB = Database('/tmp/games') # change this somewhere more permanent
+emailUsername = '' #use any gmail account
+emailPassword = ''
 userDB = TinyDB('Users.json')
-gamesDB = TinyDB('Games.json')
-
+#gamesDB = TinyDB('Games.json')
+gameActive = False
 
 ### E-mail stuff
 innocentMessage = 'You are innocent.'
-tMessage = 'You are a Traitor. Fellow Ts are '
+tMessage = 'You are a Traitor. All T\'s: '
+soloT = 'You are a Traitor, '
 s = smtplib.SMTP('smtp.gmail.com:587')
 s.starttls()
 s.login(emailUsername, emailPassword)
@@ -56,10 +58,12 @@ def sendMessage(user=None, msgStatus='start'):
     if msgStatus == 'start':
         now = gameTime
         #preamble = 'For the game on ' + '/'.join([str(now.month), str(now.day), str(now.year)]) + ' starting at ' + ':'.join([str(now.hour), str(now.minute), str(now.second), str(now.microsecond)]) + '\n'
-        preamble = 'Game# ' + str(gameNum) + ': '
+        preamble = 'Game# ' + str(gameNum) + ('; There is 1 Traitor' if numberTs <= 1 else '; There are ' + str(numberTs -1) + '-' + str(numberTs) + ' Traitors')+ ' : '
+        global currentTnames
+        traitorMessage = soloT if len(currentTnames) == 1 else tMessage
         if user != None:
             if user.status == 'T':
-                msg = MIMEText(preamble + tMessage + ', '.join(currentTnames))
+                msg = MIMEText(preamble + traitorMessage + ', '.join(currentTnames))
             else:
                 msg = MIMEText(preamble + innocentMessage)
 
@@ -68,72 +72,45 @@ def sendMessage(user=None, msgStatus='start'):
 
     if msgStatus == 'confirmCurrentPlayers':
         msg = MIMEText('You are enrolled for the next game session.')
-        
-    try:        
+
+    try:
         msg['To'] = user.number + user.provider.gateway
         s.sendmail(emailUsername, msg['To'], msg.as_string())
         print 'Message sent to ' + user.name
-        
+
     except:
         print 'Message failed, re-connecting'
-##        s = smtplib.SMTP('smtp.gmail.com:587')
-##        s.starttls()
-##        s.login(emailUsername, emailPassword)
         reconnect()
 
         try:
             s.sendmail(emailUsername, msg['To'], msg.as_string())
             print 'Retry Successful, Message sent to ' + user.name
-            
+
         except:
             print 'Message Failed, Restart Server'
-        
-        
-    
 
-def initializeDatabases():
+
+#if chance of wanting to change T selection, create flag or button selection method
+def connorTs(curUsers): #for up-to # T's
     pass
-##    try:
-##        userDB.open()
-##    except:
-##        userDB.create()
-##    try:
-##        gamesDB.open()
-##    except:
-##        gamesDB.create()
-    
-    
-        
-
-def generateGame(curUsers):
-    #consider making copy of curUsers for currentTnames
-    #as is code still may text an innocent who are T
-
-    global gameTime
-    gameTime = datetime.now()
-    
-    for user in curUsers:
-        user.status = ''
-
-    global currentTnames  
     global numberTs
-    
-# Commented Out code is for variable number of T's
+    global currentTnames
 
-##    for _ in range(numberTs):
-##        t = random.randrange(0,len(curUsers))
-##        if curUsers[t].status is 'T':
-##        curUsers[t].status = 'T'
-##        currentTnames.append(curUsers[t].name)
-    #Use Code Below for Set Number of T
-    
+    for _ in range(numberTs):
+        t = random.randrange(0,len(curUsers))
+        if curUsers[t].status is 'T':
+            curUsers[t].status = 'T'
+            currentTnames.append(curUsers[t].name)
+
+def setNumTs(curUsers): #Set value gurantees number of T's
+    pass
+    global numberTs
+    global currentTnames
     counter = 0
-    
+
     if len(curUsers) < numberTs:
-        print len(curUsers)
-        print numberTs
         numberTs = 0
-        
+
     while counter < numberTs:
         t = random.randrange(0, len(curUsers))
         if curUsers[t].status is 'T':
@@ -142,32 +119,128 @@ def generateGame(curUsers):
             curUsers[t].status = 'T'
             currentTnames.append(curUsers[t].name)
             counter += 1
-        
-    
+
+def lessT(curUsers): #Example: If 2, range of 1 or 2; 3 is range of 2-3. Set for 30%
+    pass
+
+    global numberTs
+    global currentTnames
+    nTs = numberTs
+
+    if len(curUsers) < numberTs:
+        numberTs = 0
+    randomp = random.random()
+    #print randomp
+    if numberTs > 1:
+        if randomp < .3:
+            nTs = numberTs - 1
+
+        counter = 0
+
+
+        while counter < nTs:
+            t = random.randrange(0, len(curUsers))
+            if curUsers[t].status is 'T':
+                continue
+            else:
+                curUsers[t].status = 'T'
+                currentTnames.append(curUsers[t].name)
+                counter += 1
+
+
+def generateGame(curUsers):
+    #consider making copy of curUsers for currentTnames
+    #as is code still may text an innocent who are T
+
+    global gameTime
+    gameTime = datetime.now()
+
+    for user in curUsers:
+        user.status = ''
+
+    global currentTnames
+    global numberTs
+
+    lessT(curUsers)
+
+
+    #Code below is same as setTs
+##    counter = 0
+##
+##    if len(curUsers) < numberTs:
+##        #print len(curUsers)
+##        print numberTs
+##        numberTs = 0
+##
+##    while counter < numberTs:
+##        t = random.randrange(0, len(curUsers))
+##        if curUsers[t].status is 'T':
+##            continue
+##        else:
+##            curUsers[t].status = 'T'
+##            currentTnames.append(curUsers[t].name)
+##            counter += 1
+
+
+
+
 
     currentTnames = list(set(currentTnames))
-    
+
     return curUsers
-    
+
+class Game(object):
+    victors = "" # One of [T, I]
+    traitors = []
+    innocents = []
+
+    def __init__(self, allPlayers, currentTraitors):
+        for player in allPlayers:
+            if player in currentTraitors:
+                traitors.append(player)
+            else:
+                innocents.append(player)
+
+
+    def setVictor(self, winner):
+        ### UNUSED INFO
+        if winner in ["T", "I"]:
+            self.victors = winner
+
+    def asDict(self):
+        return {'winners' : self.victors}
+
 
 class User(object):
     name = ''
     number = ''
     status = ''
     provider = Provider('', '')
+    tWins = 0
+    iWins = 0
 
-    def __init__(self, name = '', number = '', status = '', provider = Provider('', '')):
+    def __init__(self, name = '', number = '', status = '', tWins = 0, iWins = 0, provider = Provider('', '')):
         self.name = name
         self.number = number
         self.status = status
         self.provider = provider
+        self.tWins = tWins
+        self.iWins = iWins
 
     def asDict(self):
-        return {'name' : self.name, 'number' : self.number, 'status' : self.status, 'provider' : self.provider.__dict__}
+        return {'name' : self.name, 'number' : self.number, 'status' : self.status, 'tWins' : self.tWins, 'iWins' : self.iWins, 'provider' : self.provider.__dict__}
 
-    def __eq__(self, other): 
+    def __eq__(self, other):
         return self.asDict() == other.asDict()
-    
+
+    def addWin(self, player):
+        if player.status == 'T':
+            self.tWins += 1
+        elif player.status == '':
+            self.iWins += 1
+
+        commitUserToDatabase(player)
+
 
 
 def initializeUsers():
@@ -183,44 +256,85 @@ def initializeProviders():
     supportedProviders.append(Provider('US Cellular', '@email.uscc.net'))
     supportedProviders.append(Provider('Verizon', '@vtext.com'))
     supportedProviders.append(Provider('E-MAIL', ''))
-        
+
 class StartGame(webapp2.RequestHandler):
     def get(self):
-       #if self.request.get('numTs') is not None: 
+        global gameActive
+       #if self.request.get('numTs') is not None:
        # numberTs = int(self.request.get('numTs'))
-        global currentTnames
-        currentTnames = []
-        
-        global currentGame
-        if len(currentUsers): 
-          currentGame = generateGame(currentUsers)
- 
-          for player in currentGame:
-            sendMessage(player)
-          self.response.out.write('Messages are now sent to each player.')
+        #print gameActive
+        if not gameActive:
+            global currentTnames
+            currentTnames = []
+
+            global currentGame
+            global gameNum
+
+            if len(currentUsers):
+              currentGame = generateGame(currentUsers)
+
+              for player in currentGame:
+                sendMessage(player)
+
+              self.response.out.write('Game# ' + str(gameNum) + ': Messages are now sent to each player.')
+              gameNum = gameNum + 1
+              gameActive = True
+
+            else:
+              self.response.out.write('No Players')
+
+
+
+            self.response.out.write("""
+                  <html>
+                      <body>
+                   <form action="/startgame">
+                    <input type="submit" value="Score" />
+                    </form>""")
+
+            self.response.out.write("""
+                  <html>
+                      <body>
+                   <form action="/">
+                    <input type="submit" value="Homepage" />
+                    </form>""")
+        else:
+            self.response.out.write("""
+                  <html>
+                      <body>
+                   <form action="/startgame" method="post">
+                   <select name="Winners">
+                    <option value='T'>Traitors won</option>
+                    <option value=''>Innocents won</option>
+                    <option value="Cancelled">Game was cancelled</option>
+                    <input type="submit" value="End game">
+                    </form>""")
+
+
+    def post(self):
+        global gameActive
+        if not gameActive:
+            global numberTs
+            try:
+              numberTs = int(self.request.get('numTs'))
+              self.redirect("/startgame")
+            except:
+              self.response.out.write('Please enter a valid number.')
 
         else:
-          self.response.out.write('No Players')
-          
-        global gameNum
-        gameNum = gameNum + 1
+            gameActive = False
+            for player in currentGame:
+##                if player.status == self.request.get("Winners"):
+##                    player.addWin()
+                if player.status == self.request.get("Winners"):
+                    # O(n^2) again, but too small to care
+                    for realPlayerObject in currentUsers:
+                        if player.number == realPlayerObject.number:
+                            realPlayerObject.addWin(player)
+            self.redirect("/")
 
 
-        self.response.out.write("""
-              <html>
-                  <body>
-               <form action="/">
-                <input type="submit" value="Homepage" />
-                </form>""")
-    def post(self):
-        global numberTs
-        try:
-          numberTs = int(self.request.get('numTs'))
-          self.redirect("/startgame")
-        except:
-          self.response.out.write('Please enter a valid number.')
-          
-    
+
 class AddUserPage(webapp2.RequestHandler):
     def get(self):
         self.response.out.write("""
@@ -236,7 +350,7 @@ class AddUserPage(webapp2.RequestHandler):
                                     + provider.provider.split()[0].lower()
                                     + """\">""" + provider.provider
                                     + """</option>""")
-        
+
         self.response.out.write("""</select>
                 <div><input type="submit" value="Add new user"></div>
               </form>
@@ -249,16 +363,16 @@ class AddUserPage(webapp2.RequestHandler):
           <html>
             <form action="/chi" method="post">
                </div><select name="User">""")
-        
-        for user in userDB.all():            
+
+        for user in userDB.all():
             self.response.out.write("""<option value=\""""
                                     + user['number']
                                     + """\">""" + user['name']
                                     + """</option>""")
 
         self.response.out.write('<div><input type = "text" name="nick" rows="1" cols="30"></div>')
-        
-        
+
+
         self.response.out.write("""</select>
                 <div><input type="submit" name="Change" value="Change Name"></div>
               </form>
@@ -272,13 +386,18 @@ class AddUserPage(webapp2.RequestHandler):
         #print self.request.get('User')
         if self.request.get('nick') != '':
             userDB.update({'name': nick}, query.number == self.request.get('User'))
-            
-        self.redirect('/chi')
-        
-        
 
-        
-        
+        self.redirect('/chi')
+
+
+
+
+def refreshDatabase():
+    player = User()
+    for user in userDB.all():
+        player = buildUserFromDict(user)
+        commitUserToDatabase(player)
+
 
 class DeleteUserPage(webapp2.RequestHandler):
      def get(self):
@@ -286,14 +405,14 @@ class DeleteUserPage(webapp2.RequestHandler):
           <html>
             <form action="/deleted" method="post">
                </div><select name="User">""")
-        
-        for user in currentUsers:            
+
+        for user in currentUsers:
             self.response.out.write("""<option value=\""""
                                     + str(currentUsers.index(user))
                                     + """\">""" + user.name
-                                    + """</option>""")   
-        
-        
+                                    + """</option>""")
+
+
         self.response.out.write("""</select>
                 <div><input type="submit" name="Delete" value="Delete user"></div>
                 <div><input type="submit" value="Resend recent text"></div
@@ -307,16 +426,16 @@ def commitUserToDatabase(player):
     else:
       userDB.update(player.asDict(), Query().number == player.number) # This updates things including those that aren't updated often (name, number). Maybe add a function to user for the stats worth updating (score, etc.)
     print userDB.all()
-        
+
 class NewGuestbook(webapp2.RequestHandler):
     def post(self):
 
         index = self.request.get('User')
-        print index
-        
+        #print index
+
         global currentUsers
-        
-        
+
+
         if len(currentUsers):
           if self.request.get('Delete'):
             removePlayerFromSession(currentUsers[int(index)])
@@ -329,7 +448,7 @@ class NewGuestbook(webapp2.RequestHandler):
               self.response.out.write('No game to resend.')
         else:
           self.response.out.write('No user with which to do anything.')
-          
+
         self.response.out.write("""
               <html>
                   <body>
@@ -347,8 +466,8 @@ class ResendToAll(webapp2.RequestHandler):
         for player in currentUsers:
             sendMessage(player, 'confirmCurrentPlayers')
         self.redirect('/')
-    
-                                
+
+
 class Guestbook(webapp2.RequestHandler):
     def post(self):
         self.response.out.write('<html><body>You wrote:<pre>')
@@ -362,7 +481,7 @@ class Guestbook(webapp2.RequestHandler):
         for provider in supportedProviders:
             if provider.provider.split()[0].lower() == self.request.get('Provider'):
                 player.provider = provider
-        
+
         self.response.out.write(player.name)
         addPlayerToSystem(player)
 
@@ -376,22 +495,31 @@ class Guestbook(webapp2.RequestHandler):
 class PlayerList(webapp2.RequestHandler):
     def get(self):
         u = Query()
+        self.response.out.write("""<table id="why" style="width:65%">
+            <tr><th>Willing to Play</th><th>Name</th><th>Phone Number</th><th>Innocent Wins</th><th>Traitor Wins</th><th>Total</th></tr>
+            """)
         self.response.out.write('<form action="/playerlist" method="post">')
         for user in userDB.all():
             #self.response.out.write('<br />' + user['name'] + '\t\t\t' + user['number'])
-            self.response.out.write('<input type="checkbox" name="' + user['number'] + '" value="test"' + (' checked="true"' if buildUserFromDict(user) in currentUsers else '') +'>' + user['name'] + '\t\t\t' + user['number'] + '</input><br />')
-        self.response.out.write('<br /><input type="submit" value="Submit" /></form><br />')
+            self.response.out.write('<tr> <td align="center"><input type="checkbox" name="' + user['number'] + '" value="test"'
+                                    + (' checked="true"' if buildUserFromDict(user) in currentUsers else '') +'></td>'
+                                    + '<td align="center">' + user['name'] + '</td><td align="center">' + user['number'] + '</td><td align="center">'
+                                    + str(user['iWins']) + '</td><td align="center">' + str(user['tWins'])
+                                    + '</td><td align="center">' + str(user['tWins'] + user['iWins'])
+                                    + '</td></input></tr>')
+                                   # + user['name'] + '\t\t\t' + user['number'] + '</input><br />')
+        self.response.out.write('</table><br /><br /><input type="submit" value="Submit"/></form><br />')
        # print userDB.get(u.name=='Alex')['number']
 
         if len(currentUsers):
             self.response.out.write('Current Players are: <br />')
-        
+
         for user in currentUsers:
             self.response.write(user.name + '<br />')
 
         self.response.out.write("""
               <html>
-                  <body>
+                  <body><br /><br />
                <form action="/">
                 <input type="submit" value="Homepage" />
                 </form>""")
@@ -409,18 +537,24 @@ class PlayerList(webapp2.RequestHandler):
                 currentPlayer = buildUserFromDict(user)
                 if currentPlayer in currentUsers:
                     removePlayerFromSession(currentPlayer)
-                
+
         self.get()
-        
-        
-        
+
+class Leaderboard(webapp2.RequestHandler):
+    pass
+
+
+
 def buildUserFromDict(userDict):
-    return User(name=userDict['name'], number = userDict['number'], provider = Provider(userDict['provider']['provider'], userDict['provider']['gateway']))
+    try:
+        return User(name=userDict['name'], number = userDict['number'], tWins = userDict['tWins'], iWins = userDict['iWins'], provider = Provider(userDict['provider']['provider'], userDict['provider']['gateway']))
+    except:
+        return User(name=userDict['name'], number = userDict['number'], provider = Provider(userDict['provider']['provider'], userDict['provider']['gateway']))
 
 def removePlayerFromSession(userObj):
     commitUserToDatabase(userObj)
     currentUsers.remove(userObj)
-                                
+
 
 
 class HelloWebapp2(webapp2.RequestHandler):
@@ -431,14 +565,14 @@ class HelloWebapp2(webapp2.RequestHandler):
         self.response.write('Welcome to the TTT Server. Time for Darkness, Deception and Death. If you do not comply, KYS.' + '<br />' + '<br />')
 
         self.response.write('Set Max Number of T\'s, Current set to ' + str(numberTs) + '<br />')
-        
+
         self.response.write("""
           <html>
               <body>
            <form action="/startgame" method="post"><div><input type = "text" name="numTs" size="1">
             <input type="submit" value="Change and Start" /></div></form>""")
 
-        
+
         for user in currentUsers:
             self.response.write(user.name + ' has a number of ' + user.number + '<br />')
             self.response.write('Their provider is ' + user.provider.provider + '<br />' + '<br />')
@@ -469,7 +603,7 @@ class HelloWebapp2(webapp2.RequestHandler):
               <body>
            <form action="/resendtoall">
             <input type="submit" value="Text to Confirm CurrentPlayers" />
-            </form>""")            
+            </form>""")
 
 
         self.response.out.write("""
@@ -477,7 +611,7 @@ class HelloWebapp2(webapp2.RequestHandler):
               <body>
            <form action="/startgame">
             <input type="submit" value="Start Game" />
-            </form>""")            
+            </form>""")
 
 app = webapp2.WSGIApplication([
     ('/', HelloWebapp2),
@@ -490,19 +624,71 @@ app = webapp2.WSGIApplication([
     ('/resendtoall', ResendToAll),
 ], debug=True)
 
+def checkForUpdates():
+    try:
+        log = open('C:\Temp\TTTlog', 'r+')
+    except:
+        log = open('C:\Temp\TTTlog', 'w+')
+    log.seek(0)
+    if log.read() != currentVersion:
+        log.seek(0)
+        log.write(currentVersion)
+        refreshDatabase()
+    log.close()
+
+def readGameNum():
+    global gameNum
+    global permGameNum
+
+    try:
+        log = open('C:\Temp\TTTlogGame', 'r+')
+    except:
+        log = open('C:\Temp\TTTlogGame', 'w+')
+        log.write(str(gameNum))
+        return 0
+
+
+    log.seek(0)
+    print 'reading gamenum'
+    gameNum = int(log.read())
+
+    log.close()
+
+def writeGameNum():
+    global gameNum
+    global permGameNum
+
+    try:
+        log = open('C:\Temp\TTTlogGame', 'w+')
+    except:
+        print 'write failed'
+
+    log.seek(0)
+    log.write(str(gameNum))
+    log.close()
+
+
+
+
+def endGame(currentGame, winners):
+    if currentGame:
+        gamesDB.insert(currentGame.asDict())
+
 def exitProgram():
     userDB.close()
     gamesDB.close()
+    writeGameNum()
     s.quit()
 
 def main():
     from paste import httpserver
     initializeProviders()
-    #initializeUsers() # comment out later
+    #initializeUsers() # use to preload people with no db
     httpserver.serve(app, host='0.0.0.0', port='3000')
 
 if __name__ == '__main__':
-    initializeDatabases()
+    checkForUpdates()
+    readGameNum()
     try:
         main()
     except KeyboardInterrupt:
